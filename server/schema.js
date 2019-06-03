@@ -1,48 +1,75 @@
-const graphql = require('graphql');
-const _ = require('lodash');
+const graphql = require("graphql");
+const axios = require("axios");
+const _ = require("lodash");
 
 const {
   GraphQLObjectType,
   GraphQLString,
   GraphQLInt,
   GraphQLSchema,
+  GraphQLList
 } = graphql;
 
-const users = [
-  {
-    id: '12',
-    firstName: 'Alice',
-    age: 22,
-  },
-  {
-    id: '23',
-    firstName: 'Bob',
-    age: 23,
-  }
-]
+const BASE_URL = 'http://localhost:3000';
+
+const fetchFromUrl = url =>
+  axios
+    .get(url)
+    .then(_.property("data"))
+    .catch(console.error);
+
+const CompanyType = new GraphQLObjectType({
+  name: "Company",
+  fields: () => ({
+    id: { type: GraphQLString },
+    name: { type: GraphQLString },
+    description: { type: GraphQLString },
+    users: {
+      type: new GraphQLList(UserType),
+      resolve(parentValue, args) {
+        return fetchFromUrl(`${BASE_URL}/companies/${parentValue.id}/users`);
+      }
+    }
+  })
+});
 
 const UserType = new GraphQLObjectType({
-  name: 'User',
-  fields: {
-    id: {type: GraphQLString},
-    firstName: {type: GraphQLString},
-    age: {type: GraphQLInt},
-  }
+  name: "User",
+  fields: () => ({
+    id: { type: GraphQLString },
+    firstName: { type: GraphQLString },
+    age: { type: GraphQLInt },
+    company: {
+      type: CompanyType,
+      resolve(parentValue, args) {
+        return fetchFromUrl(
+          `${BASE_URL}/companies/${parentValue.companyId}`
+        );
+      }
+    }
+  })
 });
 
 const RootQuery = new GraphQLObjectType({
-  name: 'RootQueryType',
+  name: "RootQueryType",
   fields: {
-    userKey: {
+    user: {
       type: UserType,
       args: { id: { type: GraphQLString } },
       resolve(parentValue, args) {
-        return _.find(users, { id: args.id });
+        return fetchFromUrl(`${BASE_URL}/users/${args.id}`);
+      }
+    },
+    company: {
+      type: CompanyType,
+      args: { id: { type: GraphQLString } },
+      resolve(parentValue, args) {
+        return fetchFromUrl(`${BASE_URL}/companies/${args.id}`);
       }
     }
   }
-})
+});
 
 module.exports = new GraphQLSchema({
-  query: RootQuery,
-})
+  query: RootQuery
+});
