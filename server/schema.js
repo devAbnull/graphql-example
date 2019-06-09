@@ -7,16 +7,22 @@ const {
   GraphQLString,
   GraphQLInt,
   GraphQLSchema,
-  GraphQLList
+  GraphQLList,
+  GraphQLNonNull
 } = graphql;
 
-const BASE_URL = 'http://localhost:3000';
+const BASE_URL = "http://localhost:3000";
 
-const fetchFromUrl = url =>
-  axios
-    .get(url)
-    .then(_.property("data"))
-    .catch(console.error);
+const getDataPromise = axiosPromise =>
+  axiosPromise.then(_.property("data")).catch(console.error);
+
+const fetchFromUrl = url => getDataPromise(axios.get(url));
+
+const addOnUrl = (url, body) => getDataPromise(axios.post(url, body));
+
+const deleteOnUrl = url => getDataPromise(axios.delete(url));
+
+const editOnUrl = (url, body) => getDataPromise(axios.patch(url, body));
 
 const CompanyType = new GraphQLObjectType({
   name: "Company",
@@ -42,9 +48,7 @@ const UserType = new GraphQLObjectType({
     company: {
       type: CompanyType,
       resolve(parentValue, args) {
-        return fetchFromUrl(
-          `${BASE_URL}/companies/${parentValue.companyId}`
-        );
+        return fetchFromUrl(`${BASE_URL}/companies/${parentValue.companyId}`);
       }
     }
   })
@@ -70,6 +74,45 @@ const RootQuery = new GraphQLObjectType({
   }
 });
 
+const mutation = new GraphQLObjectType({
+  name: "mutation",
+  fields: {
+    addUser: {
+      type: UserType,
+      args: {
+        firstName: { type: new GraphQLNonNull(GraphQLString) },
+        age: { type: new GraphQLNonNull(GraphQLInt) },
+        companyId: { type: GraphQLString }
+      },
+      resolve(parentValue, args) {
+        return addOnUrl(`${BASE_URL}/users`, args);
+      }
+    },
+    deleteUser: {
+      type: UserType,
+      args: {
+        id: { type: new GraphQLNonNull(GraphQLString) }
+      },
+      resolve(parentValue, args) {
+        return deleteOnUrl(`${BASE_URL}/users/${args.id}`);
+      }
+    },
+    editUser: {
+      type: UserType,
+      args: {
+        id: { type: new GraphQLNonNull(GraphQLString) },
+        firstName: { type: GraphQLString },
+        age: { type: GraphQLInt },
+        companyId: { type: GraphQLString }
+      },
+      resolve(parentValue, args) {
+        return editOnUrl(`${BASE_URL}/users/${args.id}`, args);
+      }
+    }
+  }
+});
+
 module.exports = new GraphQLSchema({
-  query: RootQuery
+  query: RootQuery,
+  mutation
 });
