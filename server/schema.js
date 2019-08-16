@@ -24,6 +24,13 @@ const deleteOnUrl = url => getDataPromise(axios.delete(url));
 
 const editOnUrl = (url, body) => getDataPromise(axios.patch(url, body));
 
+const fetchUsersByFirstName = args => {
+  const fetchUsersPromise = fetchFromUrl(`${BASE_URL}/users`);
+  return fetchUsersPromise.then(allUsers =>
+    _.find(allUsers, { firstName: args.firstName })
+  );
+};
+
 const CompanyType = new GraphQLObjectType({
   name: "Company",
   fields: () => ({
@@ -55,12 +62,23 @@ const UserType = new GraphQLObjectType({
 });
 
 const RootQuery = new GraphQLObjectType({
-  name: "RootQueryType",
+  name: "RootQueryHere",
   fields: {
+    hello: {
+      // for more understanding basic example
+      type: GraphQLString,
+      resolve() {
+        return "world";
+      }
+    },
     user: {
       type: UserType,
-      args: { id: { type: GraphQLString } },
+      args: { id: { type: GraphQLString }, firstName: { type: GraphQLString } },
       resolve(parentValue, args) {
+        if (!args.id) {
+          // improvising query
+          return fetchUsersByFirstName(args);
+        }
         return fetchFromUrl(`${BASE_URL}/users/${args.id}`);
       }
     },
@@ -75,7 +93,7 @@ const RootQuery = new GraphQLObjectType({
 });
 
 const mutation = new GraphQLObjectType({
-  name: "mutation",
+  name: "MutationHere",
   fields: {
     addUser: {
       type: UserType,
